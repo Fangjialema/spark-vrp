@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class RTree {
-    private final RTreeNode root;
+    private RTreeNode root;
 
     private final int maxChildren;
 
@@ -14,7 +14,12 @@ public class RTree {
     }
 
     public void insert(Rectangle rect) {
-        insertRecursive(root, rect);
+        RTreeNode parentTemp = new RTreeNode();
+        insertRecursive(root, rect, parentTemp);
+        if (parentTemp.children.size() != 0) {
+            parentTemp.children.add(root);
+            root = parentTemp;
+        }
     }
 
     public List<Rectangle> query(Rectangle queryRect) {
@@ -27,17 +32,26 @@ public class RTree {
         deleteRecursive(root, rect);
     }
 
-    private void insertRecursive(RTreeNode node, Rectangle rect) {
+    private void insertRecursive(RTreeNode node, Rectangle rect, RTreeNode parent) {
         if (node.isLeaf()) {
             if (node.children.size() < maxChildren) {
                 node.children.add(new RTreeNode(rect));
             } else {
                 node.children.add(new RTreeNode(rect));
-                splitNode(node);
+                RTreeNode newNode = new RTreeNode();
+                splitNode(node, newNode);
+                parent.children.add(newNode);
+                parent.regainBoundary();
             }
         } else {
             RTreeNode bestChild = chooseBestChild(node, rect);
-            insertRecursive(bestChild, rect);
+            insertRecursive(bestChild, rect, node);
+            if (node.children.size() == maxChildren) {
+                RTreeNode newNode = new RTreeNode();
+                splitNode(node, newNode);
+                parent.children.add(newNode);
+                parent.regainBoundary();
+            }
         }
     }
 
@@ -180,61 +194,53 @@ public class RTree {
     }
 
     /*
-     * 试图选择最佳的两个子节点组合到一个新节点中，以最小化拆分后的节点的总面积。它考虑了所有可能的组合，然后选择最佳组合
+     *
      */
-    private void splitNode(RTreeNode node) {
-        List<RTreeNode> children = node.children;
-        // 初始化最佳拆分参数
-        double bestOverlap = Double.POSITIVE_INFINITY;
-        double bestAreaIncrease = Double.POSITIVE_INFINITY;
-        RTreeNode bestChild1 = null;
-        RTreeNode bestChild2 = null;
-        // 尝试所有可能的子节点组合
-        for (int i = 0, n = children.size(); i < n; i++) {
-            for (int j = i + 1; j < n; j++) {
-                RTreeNode child1 = children.get(i);
-                RTreeNode child2 = children.get(j);
-                // 合并两个子节点的边界
-                Rectangle combinedBoundary = Rectangle.combineRectangles(child1.boundary, child2.boundary);
-                // 计算拆分后的重叠和面积增加
-                double overlap = calculateOverlap(child1.boundary, child2.boundary);
-                double areaIncrease = calculateAreaIncrease(combinedBoundary, node.boundary);
-                // 如果找到更好的拆分方式，更新最佳参数
-                if (overlap < bestOverlap || (overlap == bestOverlap && areaIncrease < bestAreaIncrease)) {
-                    bestOverlap = overlap;
-                    bestAreaIncrease = areaIncrease;
-                    bestChild1 = child1;
-                    bestChild2 = child2;
+    private void splitNode(RTreeNode node, RTreeNode newNode) {
+        int n = node.children.size();
+        double maxDis = Double.NEGATIVE_INFINITY;
+        RTreeNode item1 = null;
+        RTreeNode item2 = null;
+        for (int i = 0; i < n; ++i) {
+            RTreeNode child1 = node.children.get(i);
+            for (int j = i + 1; j < n; ++j) {
+                RTreeNode child2 = node.children.get(j);
+                double distance = Rectangle.calculateDistance(child1.boundary, child2.boundary);
+                if (distance > maxDis) {
+                    item1 = child1;
+                    item2 = child2;
+                    maxDis = distance;
                 }
             }
         }
-        // 创建新节点并重新组织子节点
-        if (bestChild1 != null) {
-            children.remove(bestChild1);
-            children.remove(bestChild2);
-            RTreeNode newNode = new RTreeNode(Rectangle.combineRectangles(bestChild1.boundary, bestChild2.boundary));
-            newNode.children.add(bestChild1);
-            newNode.children.add(bestChild2);
-            children.add(newNode);
-            // 更新当前节点的边界
-            updateBoundary(node);
+        List<RTreeNode> list1 = new ArrayList<>();
+        list1.add(item1);
+        List<RTreeNode> list2 = new ArrayList<>();
+        list2.add(item2);
+        for (RTreeNode child : node.children) {
+            if (child == item1 || child == item2) {
+                continue;
+            }
+            double increase1 = item1.boundary.calculateAreaIncrease(child.boundary);
+            double increase2 = item2.boundary.calculateAreaIncrease(child.boundary);
+            if (increase1 < increase2) {
+                list1.add(child);
+            } else {
+                list2.add(child);
+            }
         }
+        node.children = list1;
+        newNode.children = list2;
+        node.regainBoundary();
+        newNode.regainBoundary();
     }
 
     /*
      * 计算拆分后的面积增加
      */
     private double calculateAreaIncrease(Rectangle newBoundary, Rectangle oldBoundary) {
-        double newArea = calculateArea(newBoundary);
-        double oldArea = calculateArea(oldBoundary);
+        double newArea = newBoundary.calculateArea();
+        double oldArea = oldBoundary.calculateArea();
         return newArea - oldArea;
     }
-
-    /*
-     * 计算矩形的面积
-     */
-    private double calculateArea(Rectangle rect) {
-        return (rect.maxX - rect.minX) * (rect.maxY - rect.minY);
-    }
-
 }
