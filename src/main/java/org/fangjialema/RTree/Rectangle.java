@@ -50,6 +50,7 @@ public class Rectangle {
         return (maxX - minX) * (maxY - minY) - area;
     }
 
+
     double calculateArea() {
         return (maxX - minX) * (maxY - minY);
     }
@@ -65,5 +66,10 @@ public class Rectangle {
     @Override
     public int hashCode() {
         return Objects.hash(minX, minY, maxX, maxY);
+    }
+
+    @Override
+    public String toString() {
+        return String.format("【 minX: %.2f, minY: %.2f, maxX: %.2f, maxY: %.2f】", minX, minY, maxX, maxY);
     }
 }

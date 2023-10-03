@@ -1,6 +1,9 @@
 package org.fangjialema.RTree;
 
+import org.apache.commons.collections.CollectionUtils;
+
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 public class RTree {
@@ -11,6 +14,11 @@ public class RTree {
     public RTree(int maxChildren, Rectangle initRange) {
         this.maxChildren = maxChildren;
         root = new RTreeNode(initRange); // 初始根节点范围
+    }
+
+    public RTree(int maxChildren) {
+        this.maxChildren = maxChildren;
+        root = new RTreeNode(); // 初始根节点范围
     }
 
     public void insert(Rectangle rect) {
@@ -32,26 +40,25 @@ public class RTree {
         deleteRecursive(root, rect);
     }
 
-    private void insertRecursive(RTreeNode node, Rectangle rect, RTreeNode parent) {
-        if (node.isLeaf()) {
-            if (node.children.size() < maxChildren) {
-                node.children.add(new RTreeNode(rect));
+    private boolean insertRecursive(RTreeNode curNode, RTreeNode newNode, Rectangle rect) {
+        if (curNode.level == 0) {
+            RTreeNode node = new RTreeNode(rect);
+            curNode.children.add(node);
+            if (curNode.children.size() < maxChildren) {
+                curNode.regainBoundary();
+                return false;
             } else {
-                node.children.add(new RTreeNode(rect));
-                RTreeNode newNode = new RTreeNode();
-                splitNode(node, newNode);
-                parent.children.add(newNode);
-                parent.regainBoundary();
+                splitNode(curNode, newNode);
+                return true;
             }
         } else {
-            RTreeNode bestChild = chooseBestChild(node, rect);
-            insertRecursive(bestChild, rect, node);
-            if (node.children.size() == maxChildren) {
-                RTreeNode newNode = new RTreeNode();
-                splitNode(node, newNode);
-                parent.children.add(newNode);
-                parent.regainBoundary();
+            RTreeNode bestChild = chooseBestChild(curNode, rect);
+            RTreeNode newNodeNxtLevel = new RTreeNode();
+            boolean split = insertRecursive(bestChild, newNodeNxtLevel, rect);
+            if (split) {
+
             }
+
         }
     }
 
@@ -62,7 +69,7 @@ public class RTree {
         double bestAreaIncrease = Double.POSITIVE_INFINITY;
         RTreeNode bestChild = null;
         for (RTreeNode child : node.children) {
-            double areaIncrease = calculateAreaIncrease(child.boundary, rect);
+            double areaIncrease = child.boundary.calculateAreaIncrease(rect);
             if (areaIncrease < bestAreaIncrease) {
                 bestAreaIncrease = areaIncrease;
                 bestChild = child;
@@ -235,12 +242,32 @@ public class RTree {
         newNode.regainBoundary();
     }
 
-    /*
-     * 计算拆分后的面积增加
-     */
-    private double calculateAreaIncrease(Rectangle newBoundary, Rectangle oldBoundary) {
-        double newArea = newBoundary.calculateArea();
-        double oldArea = oldBoundary.calculateArea();
-        return newArea - oldArea;
+
+    public void printTree() {
+        if (root == null) {
+            System.out.println("empty tree");
+            return;
+        }
+        LinkedList<RTreeNode> nodeStk = new LinkedList<>();
+        LinkedList<String> prefixStk = new LinkedList<>();
+        nodeStk.addLast(root);
+        prefixStk.add("");
+        while (!nodeStk.isEmpty()) {
+            RTreeNode curNode = nodeStk.pollLast();
+            String curPrefix = prefixStk.pollLast();
+            System.out.println(curPrefix + curNode.boundary.toString());
+            if (CollectionUtils.isEmpty(curNode.children)) {
+                continue;
+            }
+            String nxtPrefix = curPrefix + "├── ";
+            for (int i = curNode.children.size() - 1; i >= 1; --i) {
+                nodeStk.add(curNode.children.get(i));
+                prefixStk.add(nxtPrefix);
+            }
+            nodeStk.add(curNode.children.get(0));
+            prefixStk.add(curPrefix + "└── ");
+        }
     }
+
+
 }

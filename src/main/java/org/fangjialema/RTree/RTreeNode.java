@@ -7,12 +7,21 @@ public class RTreeNode {
     List<RTreeNode> children;
     Rectangle boundary;
 
+    int level;
+
+    double area;
+
+    boolean isLeaf;
+    boolean isElement;
+
     public RTreeNode(Rectangle boundary) {
         this.boundary = boundary;
-        this.children = new ArrayList<>();
+        area = boundary.calculateArea();
     }
 
-    public RTreeNode(){}
+    public RTreeNode() {
+        this.children = new ArrayList<>();
+    }
 
     public boolean isLeaf() {
         return children.isEmpty();
